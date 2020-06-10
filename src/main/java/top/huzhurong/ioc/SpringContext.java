@@ -47,7 +47,7 @@ import java.util.stream.Stream;
  * @since 2018/9/8
  */
 @Slf4j
-public class Winter {
+public class SpringContext {
     @Setter
     private Class<?> bootClass;
     @Getter
@@ -57,10 +57,10 @@ public class Winter {
 
     private AtomicBoolean atomicBoolean = new AtomicBoolean(false);
 
-    public Winter() {
+    public SpringContext() {
     }
 
-    public Winter(@NonNull Class<?> bootClass) {
+    public SpringContext(@NonNull Class<?> bootClass) {
         this.bootClass = bootClass;
     }
 
@@ -139,7 +139,7 @@ public class Winter {
                 }
             }
         }
-        //是这里的问题
+
         collect.stream().map(ClassInfo::getClassName).map(iocContainer::getBean).filter(this::needInject).forEach(this::inject);
         initBean(collect);
         for (ClassInfo classInfo : collect) {

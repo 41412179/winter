@@ -17,11 +17,11 @@ import java.util.Set;
 
 public class InitTest {
 
-    public static final String url = "jdbc:mysql://127.0.0.1:3306/test?useSSL=false&amp;useUnicode=true&amp;characterEncoding=utf-8&amp;autoReconnect=true";
+    public static final String url = "jdbc:mysql://127.0.0.1:3306/wenda?useSSL=false&amp;useUnicode=true&amp;characterEncoding=utf-8&amp;autoReconnect=true";
     public static final String user = "root";
-    public static final String password = "chenshun";
+    public static final String password = "mysql";
 
-    protected Winter winter = new Winter();
+    protected SpringContext springContext = new SpringContext();
     protected BeanFactory beanFactory;
 
     @Before
@@ -31,7 +31,7 @@ public class InitTest {
 
     @Test
     public void scan() {
-        Set<ClassInfo> classInfoSet = winter.scan("top.huzhurong.ioc.scan.test");
+        Set<ClassInfo> classInfoSet = springContext.scan("top.huzhurong.ioc.scan.test");
         classInfoSet.forEach(set -> {
             System.out.println(set.getaClass());
             System.out.println(set.getClassName());

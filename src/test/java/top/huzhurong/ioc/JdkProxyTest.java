@@ -21,8 +21,8 @@ public class JdkProxyTest extends InitTest {
 
     @Before
     public void before() {
-        winter.setBootClass(CglibProxyTest.class);
-        beanFactory = winter.getIocContainer();
+        springContext.setBootClass(CglibProxyTest.class);
+        beanFactory = springContext.getIocContainer();
 
         druidDataSource = new DruidDataSource();
         druidDataSource.setMaxActive(10);
@@ -35,7 +35,7 @@ public class JdkProxyTest extends InitTest {
         druidDataSource.setTestWhileIdle(true);
 
         beanFactory.put("datasource", druidDataSource);
-        winter.start();
+        springContext.start();
     }
 
 
