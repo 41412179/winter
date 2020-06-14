@@ -31,7 +31,8 @@ public class ConfigurationUtil implements IocContainerAware {
     private boolean flag = true;
 
     public void handleConfig(Set<ClassInfo> classInfoSet) {
-        Set<ClassInfo> collect = classInfoSet.stream()
+        Set<ClassInfo> collect = classInfoSet
+                .stream()
                 .map(this::handle)
                 .flatMap(Collection::stream)
                 .collect(Collectors.toSet());
@@ -76,11 +77,12 @@ public class ConfigurationUtil implements IocContainerAware {
 
             Method[] declaredMethods = aClass.getDeclaredMethods();
             Object bean = iocContainer.getBean(aClass);
-            Stream.of(declaredMethods).forEach(method -> {
-                if (method.isAnnotationPresent(Bean.class)) {
-                    set.add(handleMethod(method, bean));
-                }
-            });
+            Stream.of(declaredMethods)
+                    .forEach(method -> {
+                        if (method.isAnnotationPresent(Bean.class)) {
+                            set.add(handleMethod(method, bean));
+                        }
+                    });
         }
         return set;
     }

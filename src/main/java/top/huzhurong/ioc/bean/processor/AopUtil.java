@@ -17,18 +17,18 @@ import java.util.Set;
  * @since 2018/9/13
  */
 @Slf4j
-public class AopConfigUtil {
+public class AopUtil {
 
     public static boolean proxyByClass = true;
 
-    public static void handleConfig(Set<ClassInfo> classInfoSet, Class<?> bootClass) {
+    public static void ifOpenAopAndTransactionAnnotation(Set<ClassInfo> classInfoSet, Class<?> bootClass) {
         Class<?> aClass = Objects.requireNonNull(bootClass, "bootClass can't be null");
         EnableConfiguration declaredAnnotation = aClass.getDeclaredAnnotation(EnableConfiguration.class);
         if (declaredAnnotation != null) {
             proxyByClass = declaredAnnotation.proxyByClass();
             Arrays.stream(declaredAnnotation.value())
                     .filter(str -> !str.isEmpty())
-                    .forEach(config -> AopConfigUtil.doConfig(config, classInfoSet));
+                    .forEach(config -> AopUtil.doConfig(config, classInfoSet));
         }
     }
 

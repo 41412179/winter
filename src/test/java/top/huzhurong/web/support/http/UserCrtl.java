@@ -11,6 +11,7 @@ import top.huzhurong.web.annotation.Controller;
 import top.huzhurong.web.annotation.Json;
 import top.huzhurong.web.annotation.RequestMapping;
 import top.huzhurong.web.support.impl.Request;
+import top.huzhurong.web.util.Test;
 import top.huzhurong.web.util.dao.TestDao;
 
 import javax.sql.DataSource;
@@ -47,6 +48,7 @@ public class UserCrtl implements IocContainerAware, InitAware {
 //        testDao.updateTestByKey(test);
 //        System.out.println(JSONObject.toJSONString(test));
 //        //int i = 10 / 0;
+        testDao.addTest(new Test());
         return "1";
     }
 

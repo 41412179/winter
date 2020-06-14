@@ -24,9 +24,11 @@ public class SessionInterceptor implements Interceptor {
     @Override
     public boolean preHandle(Request request, Response response) {
         List<HttpCookie> httpCookies = request.getHttpCookie();
-        HttpCookie httpCookie = httpCookies.stream()
+        HttpCookie httpCookie = httpCookies
+                .stream()
                 .filter(cookie -> cookie.getName().equals("JSESSION"))
-                .findAny().orElse(null);
+                .findAny()
+                .orElse(null);
         //第一次
         String session;
         if (httpCookie == null) {

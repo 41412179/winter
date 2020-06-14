@@ -16,9 +16,9 @@ import java.util.List;
  */
 public class TransactionTest {
 
-    private static final String url = "jdbc:mysql://127.0.0.1:3306/test?useSSL=false&amp;useUnicode=true&amp;characterEncoding=utf-8&amp;autoReconnect=true";
+    private static final String url = "jdbc:mysql://127.0.0.1:3306/wenda?useSSL=false&amp;useUnicode=true&amp;characterEncoding=utf-8&amp;autoReconnect=true";
     private static final String user = "root";
-    private static final String password = "chenshun";
+    private static final String password = "mysql";
 
     private TestService testService;
     private DruidDataSource druidDataSource;

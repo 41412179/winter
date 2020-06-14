@@ -62,7 +62,8 @@ public class DefaultIocContainer implements IocContainer {
 
     @Override
     public Set<ClassInfo> register(Set<ClassInfo> classInfoSet) {
-        classInfoSet.forEach(this::accept);
+        classInfoSet
+                .forEach(this::accept);
         if (classInfos.size() > 0) {
             classInfos.forEach(this::accept);
         }

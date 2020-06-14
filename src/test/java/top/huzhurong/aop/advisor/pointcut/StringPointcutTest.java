@@ -16,6 +16,10 @@ import java.lang.reflect.Modifier;
  */
 public class StringPointcutTest {
 
+    /**
+     * 测试修饰符
+     * @throws NoSuchMethodException
+     */
     @Test
     public void testModifier() throws NoSuchMethodException {
         int publicModifier = 1;

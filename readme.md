@@ -18,7 +18,7 @@
 #### 特性
 
 *   [x] Aop + ioc
-*   [x] 申明式事务
+*   [x] 声明式事务
 *   [x] 接入mybatis
 *   [x] 支持url注解
 *   [x] json 响应

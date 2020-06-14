@@ -14,7 +14,7 @@ import top.huzhurong.ioc.bean.ClassInfo;
 import top.huzhurong.ioc.bean.DefaultIocContainer;
 import top.huzhurong.ioc.bean.IocContainer;
 import top.huzhurong.ioc.bean.aware.*;
-import top.huzhurong.ioc.bean.processor.AopConfigUtil;
+import top.huzhurong.ioc.bean.processor.AopUtil;
 import top.huzhurong.ioc.bean.processor.BeanProcessor;
 import top.huzhurong.ioc.bean.processor.ConfigurationUtil;
 import top.huzhurong.ioc.scan.BeanScanner;
@@ -37,6 +37,7 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -55,7 +56,7 @@ public class SpringContext {
 
     private BeanScanner beanScanner = new BeanScanner();
 
-    private AtomicBoolean atomicBoolean = new AtomicBoolean(false);
+    private AtomicBoolean repeatEnter = new AtomicBoolean(false);
 
     public SpringContext() {
     }
@@ -72,7 +73,14 @@ public class SpringContext {
                 .collect(Collectors.toSet());
     }
 
+    public static void main(String[] args) {
+        Predicate<String> p = ( String s) ->s.length() == 0;
+
+//        System.out.println(a -> true);
+    }
+
     private void prepare(Set<ClassInfo> info) {
+        //add spring framework classInfo
         info.add(new ClassInfo(Environment.class, StringUtils.handleClassName(Environment.class)));
         info.add(new ClassInfo(ConfigurationUtil.class, StringUtils.handleClassName(ConfigurationUtil.class)));
 
@@ -86,33 +94,41 @@ public class SpringContext {
 
         info.add(new ClassInfo(SessionInterceptor.class, StringUtils.handleClassName(SessionInterceptor.class)));
 
-        AopConfigUtil.handleConfig(info, this.bootClass);
+
+        AopUtil.ifOpenAopAndTransactionAnnotation(info, this.bootClass);
     }
 
     public void start() {
-        if (atomicBoolean.get()) {
+        if (repeatEnter.get()) {
             throw new IllegalStateException("Repeat registration exception");
         }
-        atomicBoolean.compareAndSet(false, true);
-        String name = bootClass.getPackage().getName();
-        Set<ClassInfo> classInfoSet = scan(name);
-        Set<ClassInfo> info = classInfoSet.stream().filter(this::find).collect(Collectors.toSet());
+        repeatEnter.compareAndSet(false, true);
+        String needScanPackageName = bootClass.getPackage().getName();
+        Set<ClassInfo> allClassInfos = scan(needScanPackageName);
+        Set<ClassInfo> annotationClassInfos = allClassInfos
+                .stream()
+                .filter(this::findAnnotationedClass)
+                .collect(Collectors.toSet());
 
-        prepare(info);
+        //add framework class info
+        prepare(annotationClassInfos);
 
         //handle bean name
-        Set<ClassInfo> collect = info.stream().map(this::handleName).collect(Collectors.toSet());
+        Set<ClassInfo> namedAnnotationClassInfos = annotationClassInfos
+                .stream()
+                .map(this::handleName)
+                .collect(Collectors.toSet());
 
         //register to ioc
-        iocContainer.register(collect);
+        iocContainer.register(namedAnnotationClassInfos);
 
-        handleAspectj(classInfoSet);
+        handleAspectj(allClassInfos);
 
         //handle aware interface
-        handleAware(collect);
+        handleAware(namedAnnotationClassInfos);
 
         ConfigurationUtil configurationUtil = iocContainer.getBean(ConfigurationUtil.class);
-        configurationUtil.handleConfig(collect);
+        configurationUtil.handleConfig(namedAnnotationClassInfos);
 
         if (iocContainer.getBean(Environment.class).importOrm()) {
             ClassInfo sessionKit = new ClassInfo(SessionKit.class, StringUtils.handleClassName(SessionKit.class));
@@ -122,14 +138,14 @@ public class SpringContext {
             iocContainer.register(factoryBean);
             iocContainer.register(sessionBean);
 
-            collect.add(sessionKit);
-            collect.add(factoryBean);
-            collect.add(sessionBean);
+            namedAnnotationClassInfos.add(sessionKit);
+            namedAnnotationClassInfos.add(factoryBean);
+            namedAnnotationClassInfos.add(sessionBean);
         }
 
-        //get BeanProcessor class set
+        //get BeanProcessor class set processBeforeInit
         List<String> beanNameForType = iocContainer.getBeanNameForType(BeanProcessor.class);
-        for (ClassInfo classInfo : collect) {
+        for (ClassInfo classInfo : namedAnnotationClassInfos) {
             for (String beanName : beanNameForType) {
                 BeanProcessor beanProcessor = (BeanProcessor) iocContainer.getBean(beanName);
                 Object origin = this.iocContainer.getBean(classInfo.getClassName());
@@ -140,9 +156,16 @@ public class SpringContext {
             }
         }
 
-        collect.stream().map(ClassInfo::getClassName).map(iocContainer::getBean).filter(this::needInject).forEach(this::inject);
-        initBean(collect);
-        for (ClassInfo classInfo : collect) {
+        namedAnnotationClassInfos.stream()
+                .map(ClassInfo::getClassName)
+                .map(iocContainer::getBean)
+                .filter(this::needInject)
+                .forEach(this::inject);
+
+        initBean(namedAnnotationClassInfos);
+
+        //processAfterInit
+        for (ClassInfo classInfo : namedAnnotationClassInfos) {
             for (String beanName : beanNameForType) {
                 BeanProcessor beanProcessor = (BeanProcessor) iocContainer.getBean(beanName);
                 Object bean = beanProcessor.processAfterInit(this.iocContainer.getBean(classInfo.getClassName()));
@@ -150,14 +173,18 @@ public class SpringContext {
             }
         }
 
-        collect.stream().map(ClassInfo::getClassName).map(iocContainer::getBean).filter(this::needInject).forEach(this::inject);
+        namedAnnotationClassInfos.stream()
+                .map(ClassInfo::getClassName)
+                .map(iocContainer::getBean)
+                .filter(this::needInject)
+                .forEach(this::inject);
 
         List<String> list = this.iocContainer.beanNamesList();
         List<Route> routeList = new LinkedList<>();
         HttpRouteBuilder builder = this.iocContainer.getBean(HttpRouteBuilder.class);
         for (String ii : list) {
             Object bean = this.iocContainer.getBean(ii);
-            if (AopConfigUtil.isCglibProxyClass(bean.getClass()) && bean.getClass().getSuperclass().isAnnotationPresent(Controller.class)) {
+            if (AopUtil.isCglibProxyClass(bean.getClass()) && bean.getClass().getSuperclass().isAnnotationPresent(Controller.class)) {
                 routeList.addAll(builder.buildRoute(bean));
             }
             if (bean.getClass().getAnnotation(Controller.class) != null) {
@@ -170,12 +197,16 @@ public class SpringContext {
 
 
         final NettyServer server = this.iocContainer.getBean(NettyServer.class);
-        server.beforeStart().start();
-        Runtime.getRuntime().addShutdownHook(new Thread(server::close));
+        server.beforeStart()
+                .start();
+        Runtime.getRuntime()
+                .addShutdownHook(new Thread(server::close));
     }
 
     private void initBean(Set<ClassInfo> collect) {
-        collect.stream().map(ClassInfo::getClassName).map(iocContainer::getBean)
+        collect.stream()
+                .map(ClassInfo::getClassName)
+                .map(iocContainer::getBean)
                 .filter(bean -> (bean instanceof InitAware))
                 .forEach(bean -> {
                     InitAware aware = (InitAware) bean;
@@ -187,22 +218,24 @@ public class SpringContext {
     /**
      * handle aspectj
      *
-     * @param classInfoSet bean set
+     * @param allClassInfos bean set
      */
-    private void handleAspectj(Set<ClassInfo> classInfoSet) {
-        Iterator<ClassInfo> iterator = classInfoSet.iterator();
-        List<Object> advisors = new LinkedList<>();
+    private void handleAspectj(Set<ClassInfo> allClassInfos) {
+        Iterator<ClassInfo> iterator = allClassInfos.iterator();
+        List<Object> aspectjBeans = new LinkedList<>();
         while (iterator.hasNext()) {
             ClassInfo classInfo = iterator.next();
             if (classInfo.getaClass().getAnnotation(Aspectj.class) != null) {
-                advisors.add(this.iocContainer.getBean(classInfo.getClassName()));
+                aspectjBeans.add(this.iocContainer.getBean(classInfo.getClassName()));
                 iterator.remove();
             }
         }
-        List<Advisor> advisorList = AspectjParser.parserAspectj(advisors);
-        Set<ClassInfo> collect = advisorList.stream().map(advisor -> new ClassInfo(advisor.getClass(), advisor.toString()))
+        List<Advisor> advisorList = AspectjParser.parserAspectj(aspectjBeans);
+        Set<ClassInfo> collect = advisorList
+                .stream()
+                .map(advisor -> new ClassInfo(advisor.getClass(), advisor.toString()))
                 .collect(Collectors.toSet());
-        classInfoSet.addAll(collect);
+        allClassInfos.addAll(collect);
     }
 
     private ClassInfo handleName(ClassInfo classInfo) {
@@ -248,7 +281,7 @@ public class SpringContext {
     private void inject(Object object) {
         Field[] declaredFields;
         Class<?> clazz;
-        if (AopConfigUtil.isCglibProxyClass(object.getClass())) {
+        if (AopUtil.isCglibProxyClass(object.getClass())) {
             declaredFields = object.getClass().getSuperclass().getDeclaredFields();
             clazz = object.getClass().getSuperclass();
         } else {
@@ -323,14 +356,15 @@ public class SpringContext {
         return false;
     }
 
-    private boolean find(ClassInfo classInfo) {
+    private boolean findAnnotationedClass(ClassInfo classInfo) {
         Class<?> aClass = classInfo.getaClass();
         return findAnnotation(aClass, Bean.class, Controller.class, Aspectj.class,
                 Configuration.class, Filter.class, ControllerAdvice.class);
     }
 
     @SafeVarargs
-    private final boolean findAnnotation(Class<?> aClass, Class<? extends Annotation>... annotation) {
-        return Stream.of(annotation).anyMatch(nn -> aClass.getDeclaredAnnotation(nn) != null);
+    private final boolean findAnnotation(Class<?> aClass, Class<? extends Annotation>... annotations) {
+        return Stream.of(annotations)
+                .anyMatch(annotation -> aClass.getDeclaredAnnotation(annotation) != null);
     }
 }

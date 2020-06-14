@@ -1,6 +1,6 @@
 package top.huzhurong.web.support.route;
 
-import top.huzhurong.ioc.bean.processor.AopConfigUtil;
+import top.huzhurong.ioc.bean.processor.AopUtil;
 import top.huzhurong.util.StringUtils;
 import top.huzhurong.web.annotation.Json;
 import top.huzhurong.web.annotation.PathVariable;
@@ -46,7 +46,7 @@ public class HttpRouteBuilder {
      */
     public List<Route> buildRoute(Object instance) {
         Class<?> clazz = instance.getClass();
-        if (AopConfigUtil.isCglibProxyClass(clazz)) {
+        if (AopUtil.isCglibProxyClass(clazz)) {
             clazz = instance.getClass().getSuperclass();
         }
         List<Route> routeList = new LinkedList<>();
